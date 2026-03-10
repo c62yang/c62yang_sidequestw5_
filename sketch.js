@@ -27,75 +27,65 @@ let player;
 let cam;
 
 function preload() {
-  allLevelsData = loadJSON("levels.json"); // levels.json beside index.html [web:122]
+  allLevelsData = loadJSON("levels.json");
 }
 
 function setup() {
   createCanvas(VIEW_W, VIEW_H);
   textFont("sans-serif");
-  textSize(14);
 
   cam = new Camera2D(width, height);
+
   loadLevel(levelIndex);
 }
 
 function loadLevel(i) {
-  level = LevelLoader.fromLevelsJson(allLevelsData, i);
+  level = new WorldLevel(allLevelsData.levels[i]);
 
-  player = new BlobPlayer();
-  player.spawnFromLevel(level);
+  player = {
+    x: level.start.x,
+    y: level.start.y,
+    r: level.start.r,
+    vx: 0
+  };
 
   cam.x = player.x - width / 2;
   cam.y = 0;
-  cam.clampToWorld(level.w, level.h);
 }
 
 function draw() {
-  // --- game state ---
-  player.update(level);
 
-  // Fall death → respawn
-  if (player.y - player.r > level.deathY) {
-    loadLevel(levelIndex);
-    return;
-  }
+  // movement
+  if (keyIsDown(65) || keyIsDown(LEFT_ARROW)) player.vx = -3;
+  else if (keyIsDown(68) || keyIsDown(RIGHT_ARROW)) player.vx = 3;
+  else player.vx = 0;
 
-  // --- view state (data-driven smoothing) ---
+  player.x += player.vx;
+
+  // camera
   cam.followSideScrollerX(player.x, level.camLerp);
-  cam.y = 0;
   cam.clampToWorld(level.w, level.h);
 
-  // --- draw ---
+  // draw world
   cam.begin();
-  level.drawWorld();
-  player.draw(level.theme.blob);
+
+  level.drawWorld(player);
+
+  drawPlayer();
+
   cam.end();
 
   // HUD
-  fill(0);
-  noStroke();
-  text(level.name + " (Example 5)", 10, 18);
-  text("A/D or ←/→ move • Space/W/↑ jump • Fall = respawn", 10, 36);
-  text("camLerp(JSON): " + level.camLerp + "  world.w: " + level.w, 10, 54);
-  text("cam: " + cam.x + ", " + cam.y, 10, 90);
-  const p0 = level.platforms[0];
-  text(`p0: x=${p0.x} y=${p0.y} w=${p0.w} h=${p0.h}`, 10, 108);
-
-  text(
-    "platforms: " +
-      level.platforms.length +
-      " start: " +
-      level.start.x +
-      "," +
-      level.start.y,
-    10,
-    72,
-  );
+  fill(255);
+  text(level.name, 10, 20);
 }
 
-function keyPressed() {
-  if (key === " " || key === "W" || key === "w" || keyCode === UP_ARROW) {
-    player.tryJump();
-  }
-  if (key === "r" || key === "R") loadLevel(levelIndex);
+function drawPlayer() {
+
+  let floatY = sin(frameCount * 0.05) * 3;
+
+  fill(level.theme.blob);
+  noStroke();
+
+  circle(player.x, player.y + floatY, player.r * 2);
 }
